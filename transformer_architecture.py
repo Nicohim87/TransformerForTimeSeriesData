@@ -101,29 +101,15 @@ class PositionalEncoding(nn.Module):
         return values + self.encoding[:, :values.shape[1], :].to(values.device)
 
 
-class PatchEmbedding(nn.Module):
-    def __init__(self, img_size, patch_size, n_hidden):
-        super(PatchEmbedding, self).__init__()
-        if not isinstance(img_size, (list, tuple)):
-            img_size = (img_size, img_size)
-        if not isinstance(patch_size, (list, tuple)):
-            patch_size = (patch_size, patch_size)
-
-        self.n_patches = (img_size[0]//patch_size[0]) * (img_size[1]//patch_size[1])
-        self.conv = nn.LazyConv2d(n_hidden, kernel_size=patch_size, stride=patch_size)
-    
-    def forward(self, x):
-        return self.conv(x).flatten(2).transpose(1, 2)
-
 class EncoderBlock(nn.Module):
-    def __init__(self, n_heads, embedding_dim):
+    def __init__(self, n_heads, hidden_dim):
         super(EncoderBlock, self).__init__()
         
-        self.multihead_attention = MultiheadAttention(n_heads, embedding_dim)
-        self.feed_forward = PositionalFF(embedding_dim, int(embedding_dim*4))
+        self.multihead_attention = MultiheadAttention(n_heads, hidden_dim)
+        self.feed_forward = PositionalFF(hidden_dim, int(hidden_dim*4))
         
-        self.norm1 = nn.LayerNorm(embedding_dim)
-        self.norm2 = nn.LayerNorm(embedding_dim)
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
     
     def forward(self, x):
         attention = self.multihead_attention(x, x, x)
@@ -133,47 +119,20 @@ class EncoderBlock(nn.Module):
         x = self.norm2(x + ff)
 
         return x
-
-class Encoder(nn.Module):
-    def __init__(self, corpus_size, embedding_dim, seq_len):
-        super(Encoder, self).__init__()
-        self.embedding = nn.Embedding(corpus_size, embedding_dim)
-        self.positional_encoding = PositionalEncoding(embedding_dim, seq_len)
-        self.multihead_attention = MultiheadAttention(4, embedding_dim)
-        self.feed_forward = PositionalFF(embedding_dim, int(embedding_dim*4))
-
-        self.norm1 = nn.LayerNorm(embedding_dim)
-        self.norm2 = nn.LayerNorm(embedding_dim)
-
-    def forward(self, values):
-        values = self.embedding(values)
-        values = self.positional_encoding(values)
-
-        attention = self.multihead_attention(values, values, values)
-        values = self.norm1(values + attention)
-
-        ff = self.feed_forward(values)
-        return self.norm2(values + ff)
     
+class DecoderBlock(nn.Module):
+    def __init__(self, hidden_dim):
+        super(DecoderBlock, self).__init__()
 
-class Decoder(nn.Module):
-    def __init__(self, corpus_size, embedding_dim, seq_len):
-        super(Decoder, self).__init__()
-        self.embedding = nn.Embedding(corpus_size, embedding_dim)
-        self.positional_encoding = PositionalEncoding(embedding_dim, seq_len)
-        self.input_attention = MultiheadAttention(4, embedding_dim, mask=True)
-        self.context_attention = MultiheadAttention(4, embedding_dim)
-        self.feed_forward = PositionalFF(embedding_dim, int(embedding_dim*4))
+        self.input_attention = MultiheadAttention(4, hidden_dim, mask=True)
+        self.context_attention = MultiheadAttention(4, hidden_dim)
+        self.feed_forward = PositionalFF(hidden_dim, int(hidden_dim*4))
 
-        self.norm1 = nn.LayerNorm(embedding_dim)
-        self.norm2 = nn.LayerNorm(embedding_dim)
-        self.norm3 = nn.LayerNorm(embedding_dim)
-
-        self.fc_out = nn.Linear(embedding_dim, corpus_size)
-
+        self.norm1 = nn.LayerNorm(hidden_dim)
+        self.norm2 = nn.LayerNorm(hidden_dim)
+        self.norm3 = nn.LayerNorm(hidden_dim)
+    
     def forward(self, values, context_vector=None):
-        values = self.embedding(values)
-        values = self.positional_encoding(values)
         input_attention = self.input_attention(values, values, values)
         values = self.norm1(values + input_attention)
 
@@ -185,14 +144,58 @@ class Decoder(nn.Module):
 
         ff = self.feed_forward(values)
         values = self.norm3(values + ff)
+
+class Encoder(nn.Module):
+    def __init__(self, corpus_size, hidden_dim, seq_len, n_blocks, n_heads, use_embedding=True, embedding_replacement:nn.Module=None):
+        super(Encoder, self).__init__()
+        if use_embedding:
+            self.embedding = nn.Embedding(corpus_size, hidden_dim)
+        else:
+            self.embedding = embedding_replacement
+        self.positional_encoding = PositionalEncoding(hidden_dim, seq_len)
+        self.blocks = nn.ModuleList(
+            [EncoderBlock(n_heads, hidden_dim) for _ in range(n_blocks)]
+        )
+
+    def forward(self, values):
+        values = self.embedding(values)
+        values = self.positional_encoding(values)
+
+        for block in self.blocks:
+            values = block(values)
+
+        return values
+    
+
+class Decoder(nn.Module):
+    def __init__(self, corpus_size, hidden_dim, seq_len, n_blocks, n_heads, use_embedding=True, embedding_replacement:nn.Module=None):
+        super(Decoder, self).__init__()
+        if use_embedding:
+            self.embedding = nn.Embedding(corpus_size, hidden_dim)
+        else:
+            self.embedding = embedding_replacement
+        self.positional_encoding = PositionalEncoding(hidden_dim, seq_len)
+        self.blocks = nn.ModuleList(
+            [DecoderBlock(n_heads, hidden_dim) for _ in range(n_blocks)]
+        )
+
+        self.fc_out = nn.Linear(hidden_dim, corpus_size)
+
+    def forward(self, values, context_vector=None):
+        values = self.embedding(values)
+        values = self.positional_encoding(values)
+
+        for block in self.blocks:
+            values = block(values, context_vector)
+
         return self.fc_out(values)
 
 
 class Transformer(nn.Module):
-    def __init__(self, encoder_corpus_size, decoder_corpus_size, embedding_dim, seq_len):
+    def __init__(self, encoder_corpus_size, decoder_corpus_size, hidden_dim, seq_len):
         super(Transformer, self).__init__()
-        self.encoder = Encoder(encoder_corpus_size, embedding_dim, seq_len)
-        self.decoder = Decoder(decoder_corpus_size, embedding_dim, seq_len)
+        self.encoder = Encoder(encoder_corpus_size, hidden_dim, seq_len)
+        self.decoder = Decoder(decoder_corpus_size, hidden_dim, seq_len)
 
     def encode(self, values):
         return self.encoder(values)
