@@ -179,7 +179,7 @@ class Decoder(nn.Module):
             [DecoderBlock(n_heads, hidden_dim) for _ in range(n_blocks)]
         )
 
-        self.fc_out = nn.Linear(hidden_dim, corpus_size)
+        self.head = nn.Linear(hidden_dim, corpus_size)
 
     def forward(self, values, context_vector=None):
         values = self.embedding(values)
@@ -188,14 +188,14 @@ class Decoder(nn.Module):
         for block in self.blocks:
             values = block(values, context_vector)
 
-        return self.fc_out(values)
+        return self.head(values)
 
 
 class Transformer(nn.Module):
-    def __init__(self, encoder_corpus_size, decoder_corpus_size, hidden_dim, seq_len):
+    def __init__(self, hidden_dim, seq_len, encoder_corpus_size, encoder_blocks, encoder_attention_heads, decoder_corpus_size, decoder_blocks, decoder_attention_heads, use_embedding=True, embedding_replacement:nn.Module=None):
         super(Transformer, self).__init__()
-        self.encoder = Encoder(encoder_corpus_size, hidden_dim, seq_len)
-        self.decoder = Decoder(decoder_corpus_size, hidden_dim, seq_len)
+        self.encoder = Encoder(encoder_corpus_size, hidden_dim, seq_len, encoder_blocks, encoder_attention_heads, use_embedding, embedding_replacement)
+        self.decoder = Decoder(decoder_corpus_size, hidden_dim, seq_len, decoder_blocks, decoder_attention_heads, use_embedding, embedding_replacement)
 
     def encode(self, values):
         return self.encoder(values)
