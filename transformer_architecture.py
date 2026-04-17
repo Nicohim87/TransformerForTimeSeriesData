@@ -121,11 +121,11 @@ class EncoderBlock(nn.Module):
         return x
     
 class DecoderBlock(nn.Module):
-    def __init__(self, hidden_dim):
+    def __init__(self, n_heads, hidden_dim):
         super(DecoderBlock, self).__init__()
 
-        self.input_attention = MultiheadAttention(4, hidden_dim, mask=True)
-        self.context_attention = MultiheadAttention(4, hidden_dim)
+        self.input_attention = MultiheadAttention(n_heads, hidden_dim, mask=True)
+        self.context_attention = MultiheadAttention(n_heads, hidden_dim)
         self.feed_forward = PositionalFF(hidden_dim, int(hidden_dim*4))
 
         self.norm1 = nn.LayerNorm(hidden_dim)
@@ -136,7 +136,7 @@ class DecoderBlock(nn.Module):
         input_attention = self.input_attention(values, values, values)
         values = self.norm1(values + input_attention)
 
-        if context_vector:
+        if context_vector is not None:
             context_attention = self.context_attention(values, context_vector, context_vector)
         else:
             context_attention = self.context_attention(values, values, values)
@@ -144,6 +144,7 @@ class DecoderBlock(nn.Module):
 
         ff = self.feed_forward(values)
         values = self.norm3(values + ff)
+        return values
 
 class Encoder(nn.Module):
     def __init__(self, corpus_size, hidden_dim, seq_len, n_blocks, n_heads, use_embedding=True, embedding_replacement:nn.Module=None):
@@ -192,10 +193,10 @@ class Decoder(nn.Module):
 
 
 class Transformer(nn.Module):
-    def __init__(self, hidden_dim, seq_len, encoder_corpus_size, encoder_blocks, encoder_attention_heads, decoder_corpus_size, decoder_blocks, decoder_attention_heads, use_embedding=True, embedding_replacement:nn.Module=None):
+    def __init__(self, hidden_dim, seq_len, corpus_size, encoder_blocks, encoder_attention_heads, decoder_blocks, decoder_attention_heads, use_embedding=True, embedding_replacement:nn.Module=None):
         super(Transformer, self).__init__()
-        self.encoder = Encoder(encoder_corpus_size, hidden_dim, seq_len, encoder_blocks, encoder_attention_heads, use_embedding, embedding_replacement)
-        self.decoder = Decoder(decoder_corpus_size, hidden_dim, seq_len, decoder_blocks, decoder_attention_heads, use_embedding, embedding_replacement)
+        self.encoder = Encoder(corpus_size, hidden_dim, seq_len, encoder_blocks, encoder_attention_heads, use_embedding, embedding_replacement)
+        self.decoder = Decoder(corpus_size, hidden_dim, seq_len, decoder_blocks, decoder_attention_heads, use_embedding, embedding_replacement)
 
     def encode(self, values):
         return self.encoder(values)
