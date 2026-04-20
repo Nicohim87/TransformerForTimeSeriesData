@@ -8,8 +8,9 @@ This is an experimental project about implementation of transformer architecture
 ├── README.md
 ├── architecture.png
 │
-├── global-data-on-sustainable-energy.csv -> Raw Dataset
-├── cleaned_dataset.csv                   -> Cleaned Dataset (Used for training, val, and test)
+├── data
+│   ├──global-data-on-sustainable-energy.csv  -> Raw Dataset
+│   └── cleaned_dataset.csv                   -> Cleaned Dataset (Used for training, val, and test)
 │
 ├── Preprocessing.ipynb                   -> Preprocessing Code
 ├── gdp_per_capita_pred.ipynb             -> Model Code
