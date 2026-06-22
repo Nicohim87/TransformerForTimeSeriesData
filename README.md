@@ -9,7 +9,7 @@ This is an experimental project about implementation of transformer architecture
 ├── architecture.png
 │
 ├── data
-│   └──global_air_quality_2014_2025.csv   -> Raw Dataset
+│   └──global_air_quality_2014_2025.csv   -> Raw Dataset Location (File too large)
 │
 ├── notebooks
 │   └──eda.ipynb                          -> Data Exploration
