@@ -17,6 +17,8 @@ This is an experimental project about implementation of transformer architecture
 │   ├──data_exploration.ipynb                 -> Data Exploration
 │   └──data_exploration.ipynb                 -> Preprocessing Notebook
 │
+├── preprocessing.py                      -> Preprocessing code
+│
 ├── transformer_components.py             -> Basic Transformer Components
 ├── transformer_architecture_base.py      -> Classic Transformer Architecture
 └── transformer_architecture_moe.py       -> Transformer Architecture with Mixture of Experts implementation
