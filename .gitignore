@@ -2,3 +2,4 @@
 .vscode
 __pycache__
 data/*.csv
+!data/worldcities_supplement.csv

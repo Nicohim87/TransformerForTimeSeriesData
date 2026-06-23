@@ -9,10 +9,13 @@ This is an experimental project about implementation of transformer architecture
 ├── architecture.png
 │
 ├── data
-│   └──global_air_quality_2014_2025.csv   -> Raw Dataset Location (File too large)
+│   ├──global_air_quality_2014_2025.csv       -> Raw Dataset Location (File too large)
+│   ├──worldcities.csv                        -> City Geological Data Dataset (File too large)
+│   └──worldcities_supplement.csv             -> Additional data for worldcities.csv (Manually searched)
 │
 ├── notebooks
-│   └──eda.ipynb                          -> Data Exploration
+│   ├──data_exploration.ipynb                 -> Data Exploration
+│   └──data_exploration.ipynb                 -> Preprocessing Notebook
 │
 ├── transformer_components.py             -> Basic Transformer Components
 ├── transformer_architecture_base.py      -> Classic Transformer Architecture
@@ -20,9 +23,10 @@ This is an experimental project about implementation of transformer architecture
 ```
 
 ## Dataset
-The dataset used is "World Air Pollution & AQI Dataset (2014–2025)" by Ashutosh Singh.
+The dataset used is "World Air Pollution & AQI Dataset (2014–2025)" by Ashutosh Singh. The dataset can be accessed from https://www.kaggle.com/datasets/ashyou09/world-air-pollution-and-aqi-dataset-20142025
 
-The dataset can be accessed from this link: https://www.kaggle.com/datasets/ashyou09/world-air-pollution-and-aqi-dataset-20142025
+A supplementary dataset is also used to get the latitude and longitude of cities. The dataset can be accessed from
+https://simplemaps.com/data/world-cities
 
 ## Architecture (Not yet updated)
 ![alt text](architecture.png)
