@@ -35,6 +35,11 @@ https://simplemaps.com/data/world-cities
 
 ## Ideas Tested
 (Not yet started)
+- Model do not predict several features that is inputted to the model such as
+    - Latitude
+    - Longitude
+    - Month
+    - Year
 
 ## Findings
 - Dataset does not have any missing values

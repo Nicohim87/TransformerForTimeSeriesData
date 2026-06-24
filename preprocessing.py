@@ -45,5 +45,13 @@ df = df.dropna()
 # Drop duplicate columns
 df = df.drop_duplicates(subset=["City_id", "Year", "Month"])
 
+# Sequence id (For data splitting)
+df["Seq_id"] = df["Year"]*12 + df["Month"]
+
+# Reorder Columns
+first_cols = ['City_id', 'Seq_id', 'Year', 'Month', 'Lat', 'Lon', 'Population_Density_per_SqKm']
+
+df = df[first_cols + [c for c in df.columns if c not in first_cols]]
+
 # Save
-df.to_csv("./data/preprocessed_data.csv")
+df.to_csv("./data/preprocessed_data.csv", index=False)
