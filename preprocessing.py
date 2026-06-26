@@ -1,4 +1,6 @@
 import pandas as pd
+import unicodedata
+import re
 
 # Read air quality dataset
 df = pd.read_csv("./data/global_air_quality_2014_2025.csv")
@@ -25,6 +27,26 @@ city = city[["id", "lat", "lon"]].drop_duplicates(subset="id")
 city = city.rename(columns={"lat": "Lat", "lon": "Lon"}).set_index("id")
 
 # Air quality dataset cleaning
+def normalize_name(text):
+    if not isinstance(text, str):
+        return text
+
+    # Remove accents
+    text = ''.join(
+        c for c in unicodedata.normalize('NFKD', text)
+        if not unicodedata.combining(c)
+    )
+
+    # Remove anything inside parentheses (including the parentheses)
+    text = re.sub(r'\s*\([^)]*\)', '', text)
+
+    # Collapse extra whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+
+    return text
+
+df["City"] = df["City"].apply(normalize_name)
+
 df["City_id"] = df["City"] + " | " + df["Country"]
 df = df.drop(columns=["City", "Country"])
 
