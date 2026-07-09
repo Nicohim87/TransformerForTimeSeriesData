@@ -35,8 +35,10 @@ elif args.checkpoint == "0":
 else:
     try:
         checkpoint = f"epoch_{int(args.checkpoint)}"
+        if not checkpoint % 100:
+            raise
     except ValueError:
-        parser.error("--checkpoint must be 'latest' or an integer")
+        parser.error("checkpoint must be 'latest' or an integer multiple of 100")
 
 with open("parameters.json", 'r') as f:
     params = json.load(f)
@@ -77,7 +79,10 @@ model = Decoder(
 ).to(DEVICE)
 
 if checkpoint:
-    model.load_state_dict(torch.load(f"model/{checkpoint}.pth", map_location="cpu", weights_only=True))
+    try:
+        model.load_state_dict(torch.load(f"model/{checkpoint}.pth", map_location="cpu", weights_only=True))
+    except FileNotFoundError:
+        raise FileNotFoundError(f"Checkpoint at {checkpoint} epochs not found")
     model.to(DEVICE)
     log = pd.read_csv("model/training_log.csv")
     epoch_start = int(log["epoch"].max()) + 1
