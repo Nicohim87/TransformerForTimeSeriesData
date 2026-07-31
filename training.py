@@ -15,9 +15,10 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 print(torch.__version__)
 print(DEVICE)
 
-log_file = "model/training_log.csv"
+log_file = "results/training_log.csv"
 
 parser = argparse.ArgumentParser()
+os.makedirs("./results", exist_ok=True)
 
 parser.add_argument(
     "--checkpoint",
