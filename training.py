@@ -46,14 +46,14 @@ with open("parameters.json", 'r') as f:
 
 # Read Data
 with open("./data/entity_seq_pair.json", 'r') as f:
-    pairs = json.load(f)
+    ds = json.load(f)
 
-ds_train = pairs["train"]
-ds_val = pairs["val"]
-ds_test = pairs["test"]
+ds_train = ds["train"]
+ds_val = ds["val"]
+SEQ_LEN = ds["metadata"]["seq_len"]
 
 df = pd.read_csv("./data/scaled_data.csv")
-df = df.set_index(["City_id", "Seq_id"])
+df = df.set_index(ds["metadata"]["index"])
 
 
 # Data Loader
@@ -61,17 +61,17 @@ from torch.utils.data import DataLoader
 
 train_loader = DataLoader(ds_train, batch_size = params["batch_size"], shuffle=True)
 val_loader = DataLoader(ds_val, batch_size = params["batch_size"])
-test_loader = DataLoader(ds_test, batch_size = params["batch_size"])
 
 # Model Preparation
 from transformers import get_cosine_schedule_with_warmup
 
-col_count = len(df.columns)
+feat_count = len(ds["metadata"]["features"])
+col_count = feat_count + len(ds["metadata"]["input_only_features"])
 
 model = Decoder(
     hidden_dim=params["hidden_dim"],
-    seq_len=params["seq_len"],
-    corpus_size=col_count - 4,
+    seq_len=SEQ_LEN,
+    corpus_size=feat_count,
     n_heads=params["n_attn_heads"],
     n_blocks=params["n_blocks"],
     dropout=params["dropout"],
@@ -108,7 +108,8 @@ optimizer = torch.optim.AdamW(model.parameters(), lr=params["lr"], weight_decay=
 scheduler = get_cosine_schedule_with_warmup(
     optimizer,
     num_warmup_steps=int(params["epochs"]*len(train_loader)*0.1),
-    num_training_steps=int(params["epochs"]*len(train_loader)*1.1)
+    num_training_steps=int(params["epochs"]*len(train_loader)*1.1),
+    last_epoch=epoch_start
 )
 
 print("Device:", next(model.parameters()).device)
@@ -125,7 +126,7 @@ def load_tensor(entities, seq):
         sid = int(sid)
         entity = entity.item() if hasattr(entity, "item") else entity
 
-        regional_data.append(torch.tensor(df.loc[entity].loc[sid:sid + params["seq_len"]].to_numpy()))
+        regional_data.append(torch.tensor(df.loc[entity].loc[sid:sid + SEQ_LEN].to_numpy()))
 
 
     regional_data = torch.stack(regional_data).to(DEVICE, torch.float32)
@@ -176,7 +177,7 @@ for e in tqdm(
 
     train_metrics["train_time"].append(time.time() - train_time)
     train_metrics["train_loss"].append(train_loss/len(train_loader))
-    train_metrics["train_rmse"].append((train_se/(train_count*col_count*params["seq_len"]))**0.5)
+    train_metrics["train_rmse"].append((train_se/(train_count*col_count*SEQ_LEN))**0.5)
 
 
     model.eval()

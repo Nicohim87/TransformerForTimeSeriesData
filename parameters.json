@@ -1,16 +1,15 @@
 {
     "seq_len":30,
     "val_time_len":12,
-    "test_time_len":12,
-    "test_only_entity":45,
+    "test_countries":["Thailand", "Germany"],
 
     "batch_size":384,
     "epochs":300,
     "lr":3e-5,
     "weight_decay":3e-5,
 
-    "hidden_dim":256,
+    "hidden_dim":128,
     "n_attn_heads":4,
-    "n_blocks":6,
+    "n_blocks":3,
     "dropout":0.3
 }

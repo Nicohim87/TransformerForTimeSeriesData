@@ -56,7 +56,6 @@ def normalize_name(text):
 df["City"] = df["City"].apply(normalize_name)
 
 df["City_id"] = df["City"] + " | " + df["Country"]
-df = df.drop(columns=["City", "Country"])
 
 # Joining air quality and city dataset
 df = df.join(city, how="left", on="City_id", validate="m:1")
@@ -89,22 +88,21 @@ df.to_csv("./data/preprocessed_data.csv", index=False)
 
 
 # ---- Train Test Splitting ----
-from sklearn.model_selection import train_test_split
 import numpy as np
 
 SEQ_LEN = params["seq_len"]
 
 entities = df["City_id"].unique()
 
-# Split test only entities
-train_entities, test_entities = train_test_split(
-    entities,
-    test_size=params["test_only_entity"],
-    random_state=42
-)
+# Filter test only entities by predetermined country names
+test_countries = params["test_countries"]
+selector = df["Country"].isin(test_countries)
 
-test_df  = df[df["City_id"].isin(test_entities)]
-df = df[df["City_id"].isin(train_entities)]
+test_df  = df[df["Country"].isin(test_countries)]
+df = df[~df["Country"].isin(test_countries)]
+
+test_df = test_df.drop(columns=["City", "Country"])
+df = df.drop(columns=["City", "Country"])
 
 # Get sequence starts
 entity = df["City_id"].unique()
@@ -112,9 +110,8 @@ seq = df["Seq_id"].unique()
 seq_start = np.arange(seq.min(), seq.max() - SEQ_LEN + 1, 1)
 
 # Train, val, test split
-train_seq = seq_start[:- params["val_time_len"] - params["test_time_len"]]
-val_seq = seq_start[- params["val_time_len"] - params["test_time_len"]: - params["test_time_len"]]
-test_seq = seq_start[- params["test_time_len"]:]
+train_seq = seq_start[:- params["val_time_len"]]
+val_seq = seq_start[- params["val_time_len"]:]
 
 
 
@@ -123,7 +120,7 @@ from sklearn.preprocessing import StandardScaler
 
 # Initiate scaler and scaler df
 scaler = StandardScaler()
-scaler_seq = set(seq[:- params["val_time_len"] - params["test_time_len"]])
+scaler_seq = set(seq[:- params["val_time_len"]])
 scaler_df = df[df["Seq_id"].isin(scaler_seq)].drop(columns=["City_id", "Seq_id"])
 
 # Fit scaler
@@ -145,11 +142,9 @@ def generate_pair(seq, entity=entity):
 
 ds_train = generate_pair(train_seq)
 ds_val = generate_pair(val_seq)
-ds_test = generate_pair(test_seq)
 
-ds_test_only = generate_pair(seq_start, test_df["City_id"].unique())
-
-
+ds_test = generate_pair(seq_start, test_df["City_id"].unique())
+print(f"Train: {len(ds_train)}, Val: {len(ds_val)}, Test: {len(ds_test)}")
 
 # ---- Save scaled ds, scaler, and pairs ----
 df.to_csv("./data/scaled_data.csv", index=False)
@@ -157,10 +152,18 @@ test_df.to_csv("./data/scaled_test_data.csv", index=False)
 
 with open("./data/entity_seq_pair.json", "w") as f:
     json.dump({
+        "metadata": {
+            "seq_starts": seq_start.tolist(),
+            "seq_len": SEQ_LEN,
+            "index": df.columns[:2].tolist(),
+            "features": df.columns[6:].tolist(),
+            "input_only_features": df.columns[2:6].tolist(),
+            "test_countries": test_countries,
+            "test_city_id": test_df["City_id"].unique().tolist()
+        },
         "train": ds_train,
         "val": ds_val,
-        "test": ds_test,
-        "test_entities": ds_test_only
+        "test": ds_test
     }, f, indent=4, default=int)
 
 os.makedirs("./model", exist_ok=True)
